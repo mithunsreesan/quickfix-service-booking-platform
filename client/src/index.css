@@ -1,0 +1,32 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap");
+
+@import "tailwindcss";
+
+* {
+  font-family: "Outfit", sans-serif;
+}
+
+@theme {
+  --color-primary: #2563eb;
+  --color-primary-dull: #1f58d8;
+  --color-light: #f1f5f9;
+  --color-borderColor: #c4c7d2;
+}
+html{scroll-behavior:smooth}button,a,input,select,textarea{touch-action:manipulation}button:disabled{opacity:.55;cursor:not-allowed}a:focus-visible,button:focus-visible{outline:3px solid #93c5fd;outline-offset:3px}.qf-page{max-width:1200px;margin:auto;padding:36px 24px 64px;min-height:55vh;color:#334155}.qf-page h1{font-size:32px;font-weight:700;color:#0f172a;margin:12px 0}.qf-page h2{font-size:21px;font-weight:600;color:#0f172a;margin:16px 0 8px}.qf-page p{margin:10px 0;line-height:1.6}.qf-page a:not(.qf-button){color:#2563eb}.qf-panel{padding:24px;border:1px solid #dce3eb;border-radius:14px;margin:20px 0;background:white;box-shadow:0 4px 18px #0f172a05}.qf-page label{display:block;font-size:14px;font-weight:500;margin:16px 0}.qf-page input,.qf-page select,.qf-page textarea{display:block;width:100%;padding:11px 13px;border:1px solid #cbd5e1;border-radius:7px;margin-top:6px;background:white;color:#1e293b}.qf-page input:focus,.qf-page select:focus,.qf-page textarea:focus{outline:2px solid #93c5fd}.qf-button{display:inline-block;background:#2563eb;color:white!important;border-radius:7px;padding:11px 20px;font-weight:600;cursor:pointer}.qf-outline{display:inline-block;border:1px solid #cbd5e1;border-radius:7px;padding:10px 16px;cursor:pointer}.qf-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.qf-columns{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:36px;margin-top:25px}.qf-cover{width:100%;height:330px;object-fit:cover;border-radius:14px}.qf-book{align-self:start;margin-top:0}.qf-hint{font-size:12px;color:#64748b}.qf-tags{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.qf-tags span,.qf-status{display:inline-block;background:#eff6ff;color:#1d4ed8;border-radius:5px;padding:5px 10px;font-size:12px;text-transform:capitalize}.qf-booking{display:grid;grid-template-columns:140px minmax(0,1fr) auto;gap:22px;align-items:start}.qf-booking>img{width:140px;height:110px;object-fit:cover;border-radius:8px}.qf-formgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.qf-check{display:flex!important;gap:10px;align-items:center}.qf-check input{width:auto;margin:0}.qf-thumb{width:180px;height:120px;object-fit:cover;border-radius:8px}@media(max-width:800px){.qf-columns{grid-template-columns:1fr}.qf-booking{grid-template-columns:90px 1fr}.qf-booking>img{width:90px;height:80px}.qf-booking>div:last-child{grid-column:1/-1}.qf-page{padding:25px 16px}.qf-panel{padding:18px}.qf-cover{height:240px}.qf-formgrid{grid-template-columns:1fr}}
+
+/* Homepage styling restored from the college project report. */
+.qf-report-hero{position:relative;min-height:440px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#162638;color:white;text-align:center}
+.qf-report-hero-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 45%;opacity:.42}
+.qf-report-hero-content{position:relative;padding:64px 24px;max-width:900px}
+.qf-report-hero h1{font-size:clamp(36px,4.3vw,60px);font-weight:800;line-height:1.12;letter-spacing:-1px}
+.qf-report-hero h2{font-size:clamp(22px,2.3vw,30px);font-weight:600;margin:10px 0 16px}
+.qf-report-hero p{font-size:18px;line-height:1.5;color:#eef2f6}
+.qf-report-categories{max-width:1240px;margin:48px auto 0;padding:28px 24px 32px;background:#f8fafc;text-align:center;scroll-margin-top:90px}
+.qf-report-categories h2{font-size:30px;font-weight:650;color:#111827}
+.qf-report-categories>p{font-size:14px;color:#64748b;margin:8px 0 28px}
+.qf-category-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:16px}
+.qf-category-card{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;min-height:100px;padding:14px 6px;background:white;border:1px solid #eef2f6;border-radius:7px;box-shadow:0 5px 9px #0f172a0c;transition:transform .15s,box-shadow .15s}
+.qf-category-card:hover{transform:translateY(-3px);box-shadow:0 8px 15px #0f172a14}
+.qf-category-card span{font-size:12px;font-weight:500;color:#334155}
+@media(max-width:1100px){.qf-category-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:540px){.qf-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.qf-report-categories{margin-top:24px;padding:24px 16px}.qf-report-hero{min-height:400px}.qf-report-hero p{font-size:16px}}

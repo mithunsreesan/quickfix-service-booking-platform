@@ -1,0 +1,15 @@
+import {useEffect,useState} from 'react';
+import {Link} from 'react-router-dom';
+import {useAppContext} from '../context/AppContext';
+import BookingPayment from '../components/BookingPayment';
+import FeedbackModal from '../components/FeedbackModal';
+import toast from 'react-hot-toast';
+export default function MyBooking(){
+ const {axios,user,authLoading,setShowLogin,mediaUrl}=useAppContext();const [bookings,setBookings]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[selected,setSelected]=useState(null),[busy,setBusy]=useState('');
+ const load=async()=>{setLoading(true);setError('');try{const {data}=await axios.get('/api/bookings/user');setBookings(data.bookings)}catch(e){setError(e.response?.data?.message||'Unable to load bookings')}finally{setLoading(false)}};
+ useEffect(()=>{if(user)load();else setBookings([])},[user]);
+ const cancel=async id=>{if(!window.confirm('Cancel this booking?'))return;setBusy(id);try{await axios.post('/api/bookings/change-status',{bookingId:id,status:'cancelled'});toast.success('Booking cancelled');await load()}catch(e){toast.error(e.response?.data?.message||'Cancellation failed')}finally{setBusy('')}};
+ if(authLoading)return <div className="qf-page">Loading account…</div>;
+ if(!user)return <div className="qf-page"><h1>My bookings</h1><p>Sign in to see your appointments.</p><button className="qf-button" onClick={()=>setShowLogin(true)}>Sign in</button></div>;
+ return <div className="qf-page"><h1>My bookings</h1><button className="qf-outline" onClick={load}>Refresh bookings</button><p>Track your service requests, cancel before the appointment, and review completed visits.</p>{loading?<p role="status">Loading bookings…</p>:error?<div role="alert">{error}<button onClick={load}>Retry</button></div>:!bookings.length?<div className="qf-panel"><h2>No bookings yet</h2><Link to="/services">Find your first service →</Link></div>:bookings.map(b=>{const s=b.serviceSnapshot?.title?b.serviceSnapshot:b.service||{};return <article className="qf-panel qf-booking" key={b._id}><img src={mediaUrl(s.image)} alt={s.title}/><div><h2>{s.title||'Archived service'}</h2><span className="qf-status">{b.status}</span><p>{b.date.slice(0,10)} · {b.time} · IST</p><p>{b.address}</p><p>Provider: {b.provider?.name} {b.provider?.email&&<a href={`mailto:${b.provider.email}`}>{b.provider.email}</a>}</p><small>Reference: {b._id.slice(-8).toUpperCase()}</small></div><div><h2>₹{b.price.toFixed(2)}</h2><BookingPayment booking={b} onUpdate={load}/>{b.status!=='completed'&&<p>Pay after service</p>}{['pending','confirmed'].includes(b.status)&&<button disabled={busy===b._id} className="qf-outline" onClick={()=>cancel(b._id)}>{busy===b._id?'Cancelling…':'Cancel booking'}</button>}{b.status==='completed'&&(b.rating?<p>Your rating: {b.rating}/5<br/>{b.feedback}</p>:<button className="qf-button" onClick={()=>setSelected(b)}>Write a review</button>)}</div></article>})}<FeedbackModal key={selected?._id||'closed'} isOpen={!!selected} booking={selected} onClose={()=>setSelected(null)} onSubmitSuccess={load}/></div>;
+}

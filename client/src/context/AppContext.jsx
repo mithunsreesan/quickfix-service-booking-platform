@@ -1,0 +1,22 @@
+import {createContext,useContext,useEffect,useState} from 'react';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import {useNavigate} from 'react-router-dom';
+axios.defaults.baseURL=import.meta.env.VITE_API_BASE_URL||'';
+export const AppContext=createContext(null);
+export const AppProvider=({children})=>{
+ const navigate=useNavigate(),currency='₹';
+ const [token,setToken]=useState(()=>localStorage.getItem('quickfix-token')||localStorage.getItem('token'));
+ const [user,setUser]=useState(null),[isProvider,setIsProvider]=useState(false),[authLoading,setAuthLoading]=useState(true);
+ const [showLogin,setShowLogin]=useState(false),[service,setService]=useState([]),[serviceLoading,setServiceLoading]=useState(true),[serviceError,setServiceError]=useState('');
+ const [date,setDate]=useState(''),[time,setTime]=useState('');
+ const mediaUrl=url=>url?.startsWith('/uploads/')?`${axios.defaults.baseURL}${url}`:url;
+ const fetchUser=async()=>{try{const {data}=await axios.get('/api/user/data');setUser({...data.user,image:mediaUrl(data.user.image)});setIsProvider(data.user.role==='provider');}catch(e){if(e.response?.status===401){localStorage.removeItem('quickfix-token');localStorage.removeItem('token');setToken(null);setUser(null);setIsProvider(false);}else toast.error('Could not load your account. Please retry.');}finally{setAuthLoading(false)}};
+ const fetchService=async()=>{setServiceLoading(true);setServiceError('');try{const {data}=await axios.get('/api/user/services');setService(data.services.map(s=>({...s,image:mediaUrl(s.image)})));}catch{setServiceError('Unable to load services. Check the server connection and retry.');}finally{setServiceLoading(false)}};
+ useEffect(()=>{fetchService()},[]);
+ useEffect(()=>{if(token){localStorage.setItem('quickfix-token',token);axios.defaults.headers.common.Authorization=`Bearer ${token}`;fetchUser();}else{delete axios.defaults.headers.common.Authorization;setAuthLoading(false)}},[token]);
+ const logout=()=>{localStorage.removeItem('quickfix-token');localStorage.removeItem('token');delete axios.defaults.headers.common.Authorization;setToken(null);setUser(null);setIsProvider(false);navigate('/');toast.success('Logged out')};
+ const becomeProvider=async()=>{if(user?.role==='admin'){navigate('/admin');return;}if(!user){setShowLogin(true);return;}try{await axios.post('/api/provider/change-role');await fetchUser();navigate('/provider');}catch(e){toast.error(e.response?.data?.message||'Unable to open provider account')}};
+ return <AppContext.Provider value={{navigate,currency,axios,token,setToken,user,setUser,isProvider,setIsProvider,authLoading,showLogin,setShowLogin,fetchUser,fetchService,service,serviceLoading,serviceError,logout,date,setDate,time,setTime,mediaUrl,becomeProvider}}>{children}</AppContext.Provider>;
+};
+export const useAppContext=()=>useContext(AppContext);

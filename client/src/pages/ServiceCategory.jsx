@@ -1,0 +1,1 @@
+import {Navigate,useParams} from 'react-router-dom';import {serviceCategories} from '../assets/assets';export default function Category(){const {category}=useParams();const name=serviceCategories.find(c=>c.toLowerCase()===category.toLowerCase())||category;return <Navigate replace to={'/services?category='+encodeURIComponent(name)}/>}

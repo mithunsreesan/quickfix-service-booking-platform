@@ -1,0 +1,1 @@
+import {Link} from 'react-router-dom';export default function Explore(){return <section className="qf-page text-center"><h1>Ready to get started?</h1><p>Explore available services and find the right help for your home.</p><Link className="qf-button mt-5" to="/services">Browse services</Link></section>}
