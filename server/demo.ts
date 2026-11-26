@@ -1,0 +1,16 @@
+import 'dotenv/config';
+import {MongoMemoryServer} from 'mongodb-memory-server';
+import {mkdir} from 'node:fs/promises';
+import path from 'node:path';
+import {randomBytes} from 'node:crypto';
+import mongoose from 'mongoose';
+process.env.DEMO_PAYMENTS='true';
+const demoData=process.env.DEMO_DATA_DIR||'.demo-data';
+await mkdir(demoData,{recursive:true});
+const mongo=await MongoMemoryServer.create({binary:{version:process.env.MONGOMS_VERSION||'7.0.14'},instance:{args:process.platform === 'win32' ? [] : ['--nounixsocket'],dbPath:path.resolve(demoData),storageEngine:'wiredTiger',dbName:'quickfix'}});
+process.env.MONGODB_URI=mongo.getUri('quickfix');process.env.JWT_SECRET||=randomBytes(48).toString('hex');
+const {default:connectDB}=await import('./config/db.js');await connectDB();
+const {seed}=await import('./seed.js');await seed();
+const {app}=await import('./app.js');const port=Number(process.env.PORT)||5000;
+const server=app.listen(port,()=>console.log(`QuickFix demo: http://localhost:${port} (local persistent demo database)`));
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await mongoose.disconnect();await mongo.stop();process.exit(0)}));

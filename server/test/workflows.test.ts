@@ -1,0 +1,54 @@
+import {test,before,after} from 'node:test';import assert from 'node:assert/strict';import {MongoMemoryServer} from 'mongodb-memory-server';import mongoose from 'mongoose';import {mkdtemp,rm} from 'node:fs/promises';import os from 'node:os';import path from 'node:path';
+let mongo:MongoMemoryServer,server:any,base:string,temp:string,Booking:any;
+before(async()=>{temp=await mkdtemp(path.join(os.tmpdir(),'qf-test-'));process.env.UPLOAD_DIR=temp;process.env.JWT_SECRET='test-only-secret-never-for-deployment-123456789';mongo=await MongoMemoryServer.create({binary:{version:process.env.MONGOMS_VERSION||'7.0.14'},instance:{args:process.platform === 'win32' ? [] : ['--nounixsocket']}});await mongoose.connect(mongo.getUri());const {app}=await import('../app.js');Booking=(await import('../model/Booking.js')).default;await Promise.all([Booking.init(),(await import('../model/User.js')).default.init()]);server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));base=`http://127.0.0.1:${server.address().port}`;},{timeout:180000});
+after(async()=>{if(server)await new Promise<void>(r=>server.close(r));await mongoose.disconnect();if(mongo)await mongo.stop();if(temp)await rm(temp,{recursive:true,force:true})});
+async function req(route:string,body?:any,token?:string){const response=await fetch(base+route,{method:body?'POST':'GET',headers:{...(body instanceof FormData?{}:{'Content-Type':'application/json'}),...(token?{Authorization:`Bearer ${token}`}:{})},body:body?(body instanceof FormData?body:JSON.stringify(body)):undefined});return {status:response.status,...await response.json()};}
+const picture=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aM1cAAAAASUVORK5CYII=','base64');
+function form(title='Test Cleaning',price=250){const f=new FormData();f.append('service',JSON.stringify({title,description:'Test listing',category:'Cleaning',pricePerHour:price,serviceArea:'Payyanur',staffCount:1,toolsProvided:true}));f.append('image',new Blob([picture],{type:'image/png'}),'test.png');return f}
+test('End-to-end customer and provider workflow',async t=>{
+ const p=await req('/api/user/register',{name:'Provider',email:'PROVIDER@test.example',password:'TestPassword123!'}),c=await req('/api/user/register',{name:'Customer',email:'customer@test.example',password:'TestPassword123!'}),o=await req('/api/user/register',{name:'Other',email:'other@test.example',password:'TestPassword123!'});assert.equal(p.status,201);
+ await t.test('authentication and role permissions',async()=>{assert.equal((await req('/api/user/login',{email:'PROVIDER@test.example',password:'TestPassword123!'})).status,200);assert.equal((await req('/api/user/login',{email:'provider@test.example',password:'wrongpass'})).status,401);assert.equal((await req('/api/provider/services')).status,401);assert.equal((await req('/api/provider/services',undefined,c.token)).status,403);assert.equal((await req('/api/provider/change-role',{},p.token)).status,200);assert.equal((await req('/api/user/data',undefined,p.token)).user.password,undefined)});
+ const s=await req('/api/provider/add-service',form(),p.token);assert.equal(s.status,201);const sid=s.service._id;
+ await t.test('service editing, images and validation',async()=>{assert.equal((await fetch(base+s.service.image)).status,200);assert.equal((await req('/api/provider/add-service',form('Bad',-1),p.token)).status,400);const f=form('Updated Cleaning',300);f.append('serviceId',sid);assert.equal((await req('/api/provider/update-service',f,p.token)).status,200);assert.equal((await req('/api/user/services/'+sid)).service.price,300);assert.equal((await req('/api/provider/toggle-service',{serviceId:sid},c.token)).status,403);const invalid=form();invalid.set('image',new Blob(['fake'],{type:'image/png'}),'fake.png');assert.equal((await req('/api/provider/add-service',invalid,p.token)).status,400)});
+ const day=new Date(Date.now()+86400000*3).toISOString().slice(0,10),payload={service:sid,date:day,time:'9-11',address:'Test address',phone:'9876543210'};let bid:string;
+ await t.test('concurrent booking protection and exact slot matching',async()=>{for(const patch of [{date:'2020-01-01'},{date:'2026-02-30'},{time:'99-100'}])assert.equal((await req('/api/bookings/create',{...payload,...patch},c.token)).status,400);assert.equal((await req('/api/bookings/create',payload,p.token)).status,400);const results=await Promise.all([req('/api/bookings/create',payload,c.token),req('/api/bookings/create',payload,c.token)]);assert.deepEqual(results.map(r=>r.status).sort(),[201,409]);const b=results.find(r=>r.status===201).booking;bid=b._id;assert.equal(b.price,600);const slots=await req(`/api/bookings/slots/${sid}?date=${day}`);assert.equal(slots.slots[0].available,false);assert.equal(slots.slots[1].available,true);const second=await req('/api/provider/add-service',form('Second Service'),p.token);assert.equal((await req('/api/bookings/create',{...payload,service:second.service._id},o.token)).status,409)});
+ await t.test('ownership and legal status transitions',async()=>{assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'cancelled'},o.token)).status,403);assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'confirmed'},c.token)).status,400);assert.equal((await req('/api/bookings/feedback',{bookingId:bid,rating:5,feedback:'Too early'},c.token)).status,409);assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'confirmed'},p.token)).status,200);assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'completed'},p.token)).status,400);assert.equal((await req('/api/provider/delete-service',{serviceId:sid},p.token)).status,409);assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'cancelled'},c.token)).status,200);assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'confirmed'},p.token)).status,400);const b=await req('/api/bookings/create',payload,c.token);assert.equal(b.status,201);bid=b.booking._id;await req('/api/provider/toggle-service',{serviceId:sid},p.token);assert.equal((await req('/api/bookings/create',{...payload,time:'11-1'},o.token)).status,404);await req('/api/provider/toggle-service',{serviceId:sid},p.token)});
+ await t.test('completion, duplicate reviews, correct averages and archived history',async()=>{await Booking.findByIdAndUpdate(bid,{date:new Date('2020-01-01'),status:'confirmed'});assert.equal((await req('/api/bookings/change-status',{bookingId:bid,status:'completed'},p.token)).status,200);assert.equal((await req('/api/bookings/feedback',{bookingId:bid,rating:4.5,feedback:'Good'},c.token)).status,400);const r=await Promise.all([req('/api/bookings/feedback',{bookingId:bid,rating:4,feedback:'Good'},c.token),req('/api/bookings/feedback',{bookingId:bid,rating:4,feedback:'Good'},c.token)]);assert.deepEqual(r.map(x=>x.status).sort(),[200,409]);await Booking.create({service:sid,provider:p.user._id,user:c.user._id,date:new Date('2020-01-02'),time:'9-11',price:600,status:'completed',rating:2,feedback:'Okay',address:'Test',phone:'9876543210'});const result=await req('/api/user/services/'+sid);assert.equal(result.service.service_rating,3);assert.equal(result.service.service_rating_count,2);assert.equal((await req('/api/provider/delete-service',{serviceId:sid},p.token)).status,200);assert.equal((await req('/api/user/services/'+sid)).status,404);const history=await req('/api/bookings/user',undefined,c.token);assert.ok(history.bookings.some((b:any)=>b.serviceSnapshot?.title==='Updated Cleaning'))});
+ await t.test('profile image route, malformed IDs and missing routes',async()=>{const f=new FormData();f.append('image',new Blob([picture],{type:'image/png'}),'profile.png');assert.equal((await req('/api/provider/update-image',f,p.token)).status,200);assert.equal((await req('/api/user/services/nope')).status,400);assert.equal((await req('/api/missing')).status,404)});
+ await t.test('admin isolation and payment state machine',async()=>{
+  const User=(await import('../model/User.js')).default;
+  const admin=await req('/api/user/register',{name:'Admin',email:'admin@test.example',password:'TestPassword123!',role:'admin'});
+  assert.equal(admin.user.role,'user');
+  assert.equal((await req('/api/admin/overview')).status,401);
+  for(const token of [p.token,c.token,admin.token])assert.equal((await req('/api/admin/overview',undefined,token)).status,403);
+  await User.findByIdAndUpdate(admin.user._id,{role:'admin'});
+  const overview=await req('/api/admin/overview',undefined,admin.token);
+  assert.equal(overview.status,200);assert.ok(overview.users.length>=4);assert.ok(overview.bookings.length>0);
+  assert.ok(overview.users.every((u:any)=>u.password===undefined));
+  assert.equal((await req('/api/provider/change-role',{},admin.token)).status,403);
+  const b=await Booking.create({service:sid,provider:p.user._id,user:c.user._id,date:new Date('2020-02-01'),time:'9-11',price:600,status:'confirmed',address:'Test',phone:'9876543210'});
+  const pay={bookingId:String(b._id),method:'cash'};
+  assert.equal((await req('/api/bookings/payment',pay,c.token)).status,409);
+  await req('/api/bookings/change-status',{bookingId:String(b._id),status:'completed'},p.token);
+  assert.equal((await req('/api/bookings/payment',pay,o.token)).status,409);
+  assert.equal((await req('/api/bookings/payment',{...pay,method:'invalid'},c.token)).status,400);
+  const results=await Promise.all([req('/api/bookings/payment',pay,c.token),req('/api/bookings/payment',pay,c.token)]);
+  assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+  assert.equal((await req('/api/bookings/confirm-cash',pay,c.token)).status,403);
+  await req('/api/provider/change-role',{},o.token);
+  assert.equal((await req('/api/bookings/confirm-cash',pay,o.token)).status,409);
+  const paid=await req('/api/bookings/confirm-cash',pay,p.token);assert.equal(paid.booking.paymentStatus,'paid');assert.ok(paid.booking.paidAt);
+  assert.equal((await req('/api/bookings/confirm-cash',pay,p.token)).status,409);
+  const demo=await Booking.create({service:sid,provider:p.user._id,user:c.user._id,date:new Date('2020-02-02'),time:'9-11',price:600,status:'completed',address:'Test',phone:'9876543210'});
+  const demoPay={bookingId:String(demo._id),method:'demo_gpay'};
+  delete process.env.DEMO_PAYMENTS;
+  assert.equal((await req('/api/bookings/payment',demoPay,c.token)).status,403);
+  process.env.DEMO_PAYMENTS='true';
+  assert.equal((await req('/api/bookings/payment',demoPay,c.token)).booking.paymentStatus,'demo_paid');
+  assert.equal((await req('/api/bookings/payment',demoPay,c.token)).status,409);
+  assert.equal((await req('/api/bookings/confirm-cash',demoPay,p.token)).status,409);
+  const history=await req('/api/bookings/user',undefined,c.token);
+  assert.equal(history.bookings.find((x:any)=>x._id===String(demo._id)).paymentStatus,'demo_paid');
+ });
+
+});

@@ -1,0 +1,3 @@
+import mongoose,{Schema} from 'mongoose';
+const serviceSchema=new Schema({provider:{type:Schema.Types.ObjectId,ref:'User',required:true},title:{type:String,required:true,maxlength:100},description:{type:String,required:true,maxlength:3000},price:{type:Number,min:0.01,required:true},category:{type:String,required:true},image:{type:String,default:''},availability:{type:Boolean,default:true},archived:{type:Boolean,default:false},staffCount:{type:Number,min:1,default:1},toolProvided:{type:Boolean,default:false},service_area:{type:String,required:true},service_rating:{type:Number,default:0},service_rating_count:{type:Number,default:0}},{timestamps:true});
+export default mongoose.model('Service',serviceSchema);

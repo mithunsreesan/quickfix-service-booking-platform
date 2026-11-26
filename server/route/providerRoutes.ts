@@ -1,0 +1,12 @@
+import express from 'express';
+import {protect,providerOnly} from '../middleware/auth.js';
+import {addService,updateService,changeRollToProvider,deleteService,getDashboardData,getProviderService,toggleServiceAvailability,updateUserImage} from '../controller/providerController.js';
+import upload from '../middleware/multer.js';
+const router=express.Router();router.use(protect);
+router.post('/change-role',changeRollToProvider);router.use(providerOnly);
+router.post('/add-service',upload.single('image'),addService);
+router.post('/update-service',upload.single('image'),updateService);
+router.get('/services',getProviderService);router.post('/toggle-service',toggleServiceAvailability);
+router.post('/delete-service',deleteService);router.get('/dashboard',getDashboardData);
+router.post('/update-image',upload.single('image'),updateUserImage);
+export default router;

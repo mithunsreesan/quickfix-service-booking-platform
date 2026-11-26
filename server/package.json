@@ -1,0 +1,41 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx --watch server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "demo": "node --import tsx demo.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:unit": "node --import tsx --test test/validation.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.17.2",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/dotenv": "^8.2.3",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.10.1",
+    "mongodb-memory-server": "^11.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  }
+}
